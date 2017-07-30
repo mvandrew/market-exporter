@@ -284,17 +284,34 @@ class ME_WC {
 
 				// Prepare variation link.
 				$var_link = '';
-				if ( $product->is_type( 'variable' ) ) :
+				$var_name = '';
+				if ( $product->is_type( 'variable' ) ) {
 					$variable_attribute = wc_get_product_variation_attributes( $offer_id );
 					$var_link = '?' . key( $variable_attribute ) . '=' . current( $variable_attribute );
 
 					// This has to work but we need to think of a way to save the initial offer variable.
 					$offer = new WC_Product_Variation( $offer_id );
-				endif;
+
+					// Формирование расширения для наименования
+					$variable_attribute = $offer->get_attributes();
+					$attribute_values = wc_get_product_terms( $offer->get_parent_id(), key($variable_attribute), array( 'fields' => 'all' ) );
+					/**
+					 * @var $attribute_value WP_Term
+					 */
+					foreach ( $attribute_values as $attribute_value ) {
+						if ( $attribute_value->slug == current($variable_attribute) ) {
+							$var_name = ' ' . wc_attribute_label( key($variable_attribute) )
+							            . ' ' . $attribute_value->name;
+							break;
+						}
+					}
+				}
 
 				// NOTE: Below this point we start using $offer instead of $product.
 				$yml .= '      <offer id="' . $offer_id . '" available="' . ( ( $offer->is_in_stock() ) ? 'true' : 'false' ) . '">' . PHP_EOL;
-				$yml .= '        <url>' . esc_url( get_permalink( $offer->get_id() ) . $var_link ) . '</url>' . PHP_EOL;
+				// Дублирует аргумент у вариативного товара
+				// $yml .= '        <url>' . esc_url( get_permalink( $offer->get_id() ) . $var_link ) . '</url>' . PHP_EOL;
+				$yml .= '        <url>' . esc_url( get_permalink($offer->get_id()) ) . '</url>' . PHP_EOL;
 
 				// Price.
 				if ( $offer->get_sale_price() && ( $offer->get_sale_price() < $offer->get_regular_price() ) ) {
@@ -332,7 +349,7 @@ class ME_WC {
 					$yml .= '        <picture>' . esc_url( $image ) . '</picture>' . PHP_EOL;
 				}
 
-				$yml .= '        <name>' . $this->clean( $offer->get_title() ) . '</name>' . PHP_EOL;
+				$yml .= '        <name>' . $this->clean( $offer->get_title() ) . $var_name . '</name>' . PHP_EOL;
 
 				// Vendor.
 				if ( isset( $this->settings['vendor'] ) && 'not_set' !== $this->settings['vendor'] ) {
@@ -425,6 +442,8 @@ class ME_WC {
 		endwhile;
 
 		return $yml;
+
+		// yml_offers
 	}
 
 	/**
